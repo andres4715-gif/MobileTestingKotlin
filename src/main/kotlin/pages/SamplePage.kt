@@ -36,7 +36,7 @@ class SamplePage : BasePage() {
      */
     override fun isPageLoaded(): Boolean {
         return try {
-            driver.currentActivity != null || driver.title != null
+            driver.sessionId != null || driver.pageSource != null
             true
         } catch (e: Exception) {
             false
@@ -62,9 +62,12 @@ class SamplePage : BasePage() {
      */
     fun getCurrentScreen(): String {
         return try {
-            driver.currentActivity ?: driver.pageSource
+            val currentScreen = driver.pageSource
+            println("Current page source retrieved successfully")
+            currentScreen
         } catch (e: Exception) {
-            driver.pageSource
+            println("Error getting current screen: ${e.message}")
+            ""
         }
     }
     

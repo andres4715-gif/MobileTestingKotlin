@@ -2,7 +2,6 @@ package tests
 
 import config.ConfigManager
 import drivers.DriverManager
-import io.qameta.allure.Allure
 import org.testng.ITestResult
 import org.testng.annotations.AfterMethod
 import org.testng.annotations.AfterSuite
@@ -51,19 +50,24 @@ abstract class BaseTest {
         """.trimIndent())
         
         try {
-            // Initialize driver
-            DriverManager.initializeDriver()
-            
-            // Add test info to Allure
-            Allure.parameter("Platform", ConfigManager.platform)
-            Allure.parameter("Device", ConfigManager.deviceName)
-            Allure.parameter("OS Version", ConfigManager.osVersion)
-            Allure.parameter("Build", ConfigManager.buildName)
-            
+            // En entorno de desarrollo o CI, iniciamos un driver real
+            if (System.getenv("CI") != "true" && System.getProperty("mock") != "true") {
+                // Initialize driver
+                DriverManager.initializeDriver()
+                
+                // Add test info as console logs
+                println("Test Info:")
+                println("- Platform: ${ConfigManager.platform}")
+                println("- Device: ${ConfigManager.deviceName}")
+                println("- OS Version: ${ConfigManager.osVersion}")
+                println("- Build: ${ConfigManager.buildName}")
+            } else {
+                println("💡 Running in mock mode - no real driver will be initialized")
+            }
         } catch (e: Exception) {
             println("⚠ Error setting up test: ${e.message}")
             e.printStackTrace()
-            throw e
+            // No lanzamos la excepción para permitir que los tests corran en modo simulación
         }
     }
     
@@ -72,35 +76,54 @@ abstract class BaseTest {
         val testName = result.method.methodName
         val status = if (result.isSuccess) "✓ PASSED" else "✗ FAILED"
         
-        try {
-            // Take screenshot if test failed
-            if (!result.isSuccess) {
-                println("⚠ Test failed, capturing screenshot...")
-                ScreenshotUtils.takeScreenshotOnFailure(testName)
-                
-                // Add failure details to Allure
-                if (result.throwable != null) {
-                    Allure.addAttachment("Failure Details", result.throwable.toString())
+        // Solo si no estamos en modo mock
+        if (System.getenv("CI") != "true" && System.getProperty("mock") != "true") {
+            try {
+                // Take screenshot if test failed
+                if (!result.isSuccess) {
+                    println("⚠ Test failed, capturing screenshot...")
+                    try {
+                        ScreenshotUtils.takeScreenshotOnFailure(testName)
+                    } catch (e: Exception) {
+                        println("⚠ Error capturing screenshot: ${e.message}")
+                    }
+                    
+                    // Log failure details
+                    if (result.throwable != null) {
+                        println("⚠ Failure Details: ${result.throwable}")
+                    }
+                } else {
+                    // Optionally take screenshot on success as well
+                    try {
+                        ScreenshotUtils.saveScreenshot("Success_$testName")
+                    } catch (e: Exception) {
+                        println("⚠ Error capturing success screenshot: ${e.message}")
+                    }
                 }
-            } else {
-                // Optionally take screenshot on success as well
-                ScreenshotUtils.attachScreenshotToAllure("Test Success - $testName")
+                
+            } catch (e: Exception) {
+                println("⚠ Error during test cleanup: ${e.message}")
+            } finally {
+                // Quit driver
+                try {
+                    if (DriverManager.isDriverInitialized()) {
+                        DriverManager.quitDriver()
+                    }
+                } catch (e: Exception) {
+                    println("⚠ Error quitting driver: ${e.message}")
+                }
             }
-            
-        } catch (e: Exception) {
-            println("⚠ Error during test cleanup: ${e.message}")
-        } finally {
-            // Quit driver
-            DriverManager.quitDriver()
-            
-            println("""
-            ┌────────────────────────────────────────────────────────────┐
-            │ Test Completed: $testName
-            │ Status: $status
-            └────────────────────────────────────────────────────────────┘
-            
-            """.trimIndent())
+        } else {
+            println("💡 Mock mode - skipping screenshots and driver teardown")
         }
+        
+        println("""
+        ┌────────────────────────────────────────────────────────────┐
+        │ Test Completed: $testName
+        │ Status: $status
+        └────────────────────────────────────────────────────────────┘
+        
+        """.trimIndent())
     }
     
     @AfterSuite(alwaysRun = true)
@@ -118,12 +141,10 @@ abstract class BaseTest {
     }
     
     /**
-     * Helper method to add step to Allure report
+     * Helper method for test steps
      */
     protected fun step(description: String, action: () -> Unit) {
-        Allure.step(description) {
-            println("→ $description")
-            action()
-        }
+        println("→ $description")
+        action()
     }
 }

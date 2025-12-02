@@ -1,10 +1,8 @@
 package utils
 
 import drivers.DriverManager
-import io.qameta.allure.Allure
 import org.openqa.selenium.OutputType
 import org.openqa.selenium.TakesScreenshot
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -46,17 +44,21 @@ object ScreenshotUtils {
     }
     
     /**
-     * Take screenshot and attach to Allure report
+     * Save screenshot with specific name
      */
-    fun attachScreenshotToAllure(name: String = "Screenshot") {
+    fun saveScreenshot(name: String = "Screenshot") {
         try {
             val driver = DriverManager.getDriver() as TakesScreenshot
-            val screenshot = driver.getScreenshotAs(OutputType.BYTES)
+            val screenshot = driver.getScreenshotAs(OutputType.FILE)
             
-            Allure.addAttachment(name, "image/png", ByteArrayInputStream(screenshot), "png")
-            println("✓ Screenshot attached to Allure report")
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+            val fileName = "${name}_${timestamp}.png"
+            val destinationPath = Paths.get(SCREENSHOT_DIR, fileName)
+            
+            Files.copy(screenshot.toPath(), destinationPath)
+            println("✓ Screenshot saved to: $destinationPath")
         } catch (e: Exception) {
-            println("⚠ Failed to attach screenshot to Allure: ${e.message}")
+            println("⚠ Failed to take screenshot: ${e.message}")
         }
     }
     
@@ -65,6 +67,5 @@ object ScreenshotUtils {
      */
     fun takeScreenshotOnFailure(testName: String) {
         takeScreenshot("FAILURE_$testName")
-        attachScreenshotToAllure("Failure Screenshot - $testName")
     }
 }
