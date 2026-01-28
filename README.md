@@ -418,4 +418,4 @@ Para preguntas y soporte, abre un issue en GitHub.
 
 ---
 
-⭐ **¡Si te gusta este proyecto, dale una estrella en GitHub!** ⭐
+⭐ **¡Si te gusta este proyecto, dale una estrella en GitHub!** ⭐🏁
